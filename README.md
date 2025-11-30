@@ -78,17 +78,17 @@ Bool: 0
 String: Hello
 ```
 
-Error Handling
+### Error Handling
 
 The parser validates and throws on:
 
-    malformed numbers, booleans, null, and strings
+- malformed numbers, booleans, null, and strings
 
-    unterminated arrays or objects
+- unterminated arrays or objects
 
-    unexpected tokens
+- unexpected tokens
 
-    invalid type casts through GetValueAs<T>
+- invalid type casts through GetValueAs<T>
 
 ---
 ### Notes
