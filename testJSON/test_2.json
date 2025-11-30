@@ -1,0 +1,112 @@
+[
+  {
+    "id": 1,
+    "name": "alpha",
+    "active": true,
+    "notes": "",
+    "nested": { "x": 10, "y": 20 }
+  },
+
+  {
+    "id": 2,
+    "name": "beta",
+    "value": null,
+    "list": [1, 2, 3],
+    "strangeEscapes": "slash: \/ quote: \" unicode snowman: \u2603"
+  },
+
+  {
+    "id": 3,
+    "name": "gamma",
+    "mixedArray": [
+      "text",
+      42,
+      false,
+      null,
+      { "k": "v" },
+      ["deep", ["deeper", ["deepest"]]]
+    ]
+  },
+
+  {
+    "id": 4,
+    "name": "delta",
+    "numbers": {
+      "int": 123,
+      "negInt": -999,
+      "float": 0.001,
+      "negFloat": -0.001,
+      "sci": 5e10,
+      "negSci": -6.02e-23
+    }
+  },
+
+  {
+    "id": 5,
+    "name": "epsilon",
+    "emptyObject": {},
+    "emptyArray": [],
+    "emptyString": "",
+    "zero": 0,
+    "negZero": -0
+  },
+
+  {
+    "id": 6,
+    "name": "zeta",
+    "keyWithSpace": "yes this exists",
+    "key\ttabbed": "tabs in keys are legal but rude",
+    "unicodeKey\u03A9": "greek omega in key"
+  },
+
+  {
+    "id": 7,
+    "name": "eta",
+    "veryLongString": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  },
+
+  {
+    "id": 8,
+    "name": "theta",
+    "whitespaceMadness":
+        [
+            
+            "indented",
+            
+                777  ,
+                
+            true 
+            ,
+            
+                    false
+        ]
+  },
+
+  {
+    "id": 9,
+    "name": "iota",
+    "objectInsideArrayInsideObject": {
+      "container": [
+        {
+          "inner": [
+            {
+              "thing": "value"
+            }
+          ]
+        }
+      ]
+    }
+  },
+
+  {
+    "id": 10,
+    "name": "kappa",
+    "edgeCases": {
+      "unicode": "\u00A9 \u20AC \u26A1",
+      "escapedBackslashes": "C:\\\\path\\\\to\\\\file",
+      "floatThatLooksLikeInt": 1.00000,
+      "intThatLooksLikeFloat": 42,
+      "annoyingNumber": 0.000000000000000000000000123
+    }
+  }
+]

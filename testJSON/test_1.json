@@ -1,0 +1,67 @@
+{
+  "emptyObject": {},
+  "emptyArray": [],
+
+  "simpleString": "hello world",
+  "stringWithEscapes": "quote: \" backslash: \\ tab:\t newline:\n unicode: \u03A9",
+  "stringWithSlashes": "path\/to\/something",
+  "stringWithWeirdSpacing": "   spaced out   ",
+
+  "simpleInt": 42,
+  "simpleNegativeInt": -17,
+  "simpleFloat": 3.14159,
+  "scientificPositive": 1.23e45,
+  "scientificNegative": -9.81E-12,
+  "floatLeadingDot": 0.123,
+  "floatTrailingDot": 123.0,
+
+  "trueBoolean": true,
+  "falseBoolean": false,
+  "nullValue": null,
+
+  "nestedObject": {
+    "level1": {
+      "level2": {
+        "level3": {
+          "meaningOfLife": 42,
+          "deepString": "buried treasure"
+        }
+      }
+    }
+  },
+
+  "arrayOfEverything": [
+    123,
+    "string",
+    false,
+    null,
+    {"obj": "inside array"},
+    [1, 2, 3, ["deep", "deeper", {"core": "found"}]]
+  ],
+
+  "mixedKeysObject": {
+    "": "empty key",
+    "123": "numeric-looking key",
+    "with space": "spaces allowed",
+    "with\tescape": "tabs in key"
+  },
+
+  "whitespaceMadness":
+  [
+    
+        "indented string"   ,
+        
+        999   ,
+        
+        true,
+                          null
+    ],
+
+  "edgeCases": {
+    "longString": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "numberZero": 0,
+    "negativeZero": -0,
+    "bigNumber": 1000000000000000000000000,
+    "tinyNumber": 0.000000000000000000000001
+  }
+}
