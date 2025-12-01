@@ -50,6 +50,22 @@ namespace JSON
         INVALID
     };
 
+    static std::string ValueTypeToString(ValueType type)
+    {
+        switch (type)
+        {
+        case JSON::ValueType::STRING_LITERAL:   return "STRING_LITERAL";
+        case JSON::ValueType::NUMBER_LITERAL:   return "NUMBER_LITERAL";
+        case JSON::ValueType::OBJECT:           return "OBJECT";
+        case JSON::ValueType::ARRAY:            return "ARRAY";
+        case JSON::ValueType::BOOL_LITERAL:     return "BOOL_LITERAL";
+        case JSON::ValueType::NULL_LITERAL:     return "NULL_LITERAL";
+        case JSON::ValueType::INVALID:          return "INVALID";
+        default:
+            return "INVALID_TYPE";
+        }
+    }
+
     struct BaseValue
     {
         BaseValue() {}
@@ -108,6 +124,12 @@ namespace JSON
 
         template<typename T>
         bool TryGetValueAs(Value<T>*&);
+
+        std::string GetTypeAsString()
+        {
+            return ValueTypeToString(valueType);
+        }
+
     };
 
     typedef std::unordered_map<std::string, JSONElement> JSONContainer;
