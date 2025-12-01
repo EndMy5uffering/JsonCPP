@@ -19,6 +19,14 @@ int main(void)
     auto& sstring = test2.GetValueAs<std::string>().GetValue();
     std::cout << "String Value: " << sstring << "\n";
 
+    JSON::Value<JSON::JSONContainer>* tryGetContainer;
+    if(element.TryGetValueAs<JSON::JSONContainer>(tryGetContainer))
+    {
+        auto& value = tryGetContainer->GetValue()["simpleString"];
+        JSON::Value<std::string>* strValue;
+        if(value.TryGetValueAs<std::string>(strValue)) std::cout << "Value from try get: " << strValue->GetValue() << "\n";
+    }
+
     return 0;
 }
 

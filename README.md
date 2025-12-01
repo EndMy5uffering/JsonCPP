@@ -50,8 +50,6 @@ Example usage:
 int main() 
 {
     JSON::JSONParser parser{"../testJSON/test_1.json"};
-    parser.LoadSource();
-
     JSON::JSONElement root = parser.Parse();
 
     auto& obj = root.GetValueAs<JSON::JSONContainer>().GetValue();
@@ -61,6 +59,17 @@ int main()
 
     std::string text = obj["simpleString"].GetValueAs<std::string>().GetValue();
     std::cout << "String: " << text << "\n";
+
+    JSON::Value<JSON::JSONContainer>* tryGetContainer;
+    if(root.TryGetValueAs<JSON::JSONContainer>(tryGetContainer))
+    {
+        auto& value = tryGetContainer->GetValue()["simpleString"];
+        JSON::Value<std::string>* strValue;
+        if(value.TryGetValueAs<std::string>(strValue)) 
+            std::cout << "Value from try get: " << strValue->GetValue() << "\n";
+    }
+
+    return 0;
 }
 ```
 ```JSON

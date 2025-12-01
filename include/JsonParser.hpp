@@ -104,7 +104,10 @@ namespace JSON
         ValueType GetValueType() { return valueType; }
 
         template<typename T>
-        Value<T>& GetValueAs() { throw std::runtime_error("Type conversion to provided type not allowed!"); }
+        Value<T>& GetValueAs();
+
+        template<typename T>
+        bool TryGetValueAs(Value<T>*&);
     };
 
     typedef std::unordered_map<std::string, JSONElement> JSONContainer;
@@ -350,49 +353,44 @@ namespace JSON
 
 }
 
-template<>
-JSON::Value<double>& JSON::JSONElement::GetValueAs<double>()
-{
-    if(this->valueType != JSON::ValueType::NUMBER_LITERAL) throw std::runtime_error("Value is not of type number");
-    auto val = dynamic_cast<JSON::Value<double>*>(this->value.get());
-    if (!val) throw std::runtime_error("Wrong type");
-    return *val;
+#define GET_VALUE_AS(TYPE, VALUE_TYPE) \
+template<> \
+JSON::Value<TYPE>& JSON::JSONElement::GetValueAs<TYPE>() \
+{ \
+    if(this->valueType != VALUE_TYPE) throw std::runtime_error("Value is not of type number"); \
+    auto val = dynamic_cast<JSON::Value<TYPE>*>(this->value.get()); \
+    if (!val) throw std::runtime_error("Wrong type"); \
+    return *val; \
 }
 
-template<>
-JSON::Value<std::string>& JSON::JSONElement::GetValueAs<std::string>()
-{
-    if(this->valueType != JSON::ValueType::STRING_LITERAL) throw std::runtime_error("Value is not of type string");
-    auto val = dynamic_cast<JSON::Value<std::string>*>(this->value.get());
-    if (!val) throw std::runtime_error("Wrong type");
-    return *val;
+
+GET_VALUE_AS(double, JSON::ValueType::NUMBER_LITERAL)
+GET_VALUE_AS(std::string, JSON::ValueType::STRING_LITERAL)
+GET_VALUE_AS(bool, JSON::ValueType::BOOL_LITERAL)
+GET_VALUE_AS(JSON::JSONContainer, JSON::ValueType::OBJECT)
+GET_VALUE_AS(JSON::JSONArrayContainer, JSON::ValueType::ARRAY)
+
+#undef GET_VALUE_AS
+
+#define TRY_GET_VALUE_AS(TYPE, VALUE_TYPE) \
+template<> \
+bool JSON::JSONElement::TryGetValueAs<TYPE>(JSON::Value<TYPE>*& result) \
+{ \
+    result = nullptr; \
+    if(this->valueType != VALUE_TYPE) return false; \
+    auto val = dynamic_cast<JSON::Value<TYPE>*>(this->value.get()); \
+    if (!val) return false; \
+    result = val; \
+    return true; \
 }
 
-template<>
-JSON::Value<bool>& JSON::JSONElement::GetValueAs<bool>()
-{
-    if(this->valueType != JSON::ValueType::BOOL_LITERAL) throw std::runtime_error("Value is not of type bool");
-    auto val = dynamic_cast<JSON::Value<bool>*>(this->value.get());
-    if (!val) throw std::runtime_error("Wrong type");
-    return *val;
-}
+TRY_GET_VALUE_AS(double, JSON::ValueType::NUMBER_LITERAL)
+TRY_GET_VALUE_AS(std::string, JSON::ValueType::STRING_LITERAL)
+TRY_GET_VALUE_AS(bool, JSON::ValueType::BOOL_LITERAL)
+TRY_GET_VALUE_AS(JSON::JSONContainer, JSON::ValueType::OBJECT)
+TRY_GET_VALUE_AS(JSON::JSONArrayContainer, JSON::ValueType::ARRAY)
 
-template<>
-JSON::Value<JSON::JSONArrayContainer>& JSON::JSONElement::GetValueAs<JSON::JSONArrayContainer>()
-{
-    if(this->valueType != JSON::ValueType::ARRAY) throw std::runtime_error("Value is not of type array");
-    auto val = dynamic_cast<JSON::Value<JSON::JSONArrayContainer>*>(this->value.get());
-    if (!val) throw std::runtime_error("Wrong type");
-    return *val;
-}
+#undef TRY_GET_VALUE_AS
 
-template<>
-JSON::Value<JSON::JSONContainer>& JSON::JSONElement::GetValueAs<JSON::JSONContainer>()
-{
-    if(this->valueType != JSON::ValueType::OBJECT) throw std::runtime_error("Value is not of type object");
-    auto val = dynamic_cast<JSON::Value<JSON::JSONContainer>*>(this->value.get());
-    if (!val) throw std::runtime_error("Wrong type");
-    return *val;
-}
 
 #endif // JSONPARSER_HPP
