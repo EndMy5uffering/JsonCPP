@@ -43,7 +43,14 @@ int main(void)
         auto& value = tryGetContainer->GetValue()["simpleString"];
         JSON::Value<std::string>* strValue;
         if(value.TryGetValueAs<std::string>(strValue)) std::cout << "Value from try get: " << strValue->GetValue() << "\n";
+
+        for(auto& [key, value] : tryGetContainer->GetValue())
+        {
+            std::cout << key << " : " << value.GetTypeAsString() << "\n";
+        }
     }
+
+
 
     return 0;
 }

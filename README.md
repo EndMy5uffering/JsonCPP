@@ -63,28 +63,41 @@ int main()
     JSON::Value<JSON::JSONContainer>* tryGetContainer;
     if(root.TryGetValueAs<JSON::JSONContainer>(tryGetContainer))
     {
-        auto& value = tryGetContainer->GetValue()["simpleString"];
-        JSON::Value<std::string>* strValue;
-        if(value.TryGetValueAs<std::string>(strValue)) 
-            std::cout << "Value from try get: " << strValue->GetValue() << "\n";
+        auto& value = tryGetContainer->GetValue()["simpleInt"];
+        JSON::Value<double>* numValue;
+        if(value.TryGetValueAs<double>(numValue)) 
+            std::cout << "Value from try get: " << numValue->GetValue() << "\n";
+        
+        for(auto& [key, value] : tryGetContainer->GetValue())
+        {
+            std::cout << key << " : " << value.GetTypeAsString() << "\n";
+        }
     }
 
     return 0;
 }
 ```
-```JSON
 Sample JSON:
-
+```JSON
 {
     "falseBoolean": false,
-    "simpleString": "Hello"
+    "simpleString": "Hello",
+    "simpleInt": 42
 }
-```
 ```
 Output:
 
+```
 Bool: 0
 String: Hello
+Value from try get: 42
+edgeCases : OBJECT
+whitespaceMadness : ARRAY
+nestedObject : OBJECT
+emptyObject : OBJECT
+stringWithEscapes : STRING_LITERAL
+emptyArray : ARRAY
+[...]
 ```
 
 ### Error Handling
