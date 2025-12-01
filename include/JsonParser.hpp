@@ -120,14 +120,10 @@ namespace JSON
                 
             }
 
-            void LoadSource()
+            JSONElement Parse()
             {
                 lexer.ReadSourceFile();
                 tokens = lexer.scanTokens();
-            }
-
-            JSONElement Parse()
-            {
                 if(Peek().tokenType != TokenType::LBRACE && Peek().tokenType != TokenType::LBRACKET)
                     throw std::runtime_error("Invalid token at start of file!");
                 if(Peek().tokenType == TokenType::LBRACE) { GetNext(); return BeginParseObject(); }

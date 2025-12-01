@@ -6,8 +6,6 @@ int main(void)
     //JSON::Parse("../test_1.json");
 
     JSON::JSONParser parser{"../testJSON/test_1.json"};
-    parser.LoadSource();
-
     JSON::JSONElement element = parser.Parse();
 
     auto& container = element.GetValueAs<JSON::JSONContainer>();
