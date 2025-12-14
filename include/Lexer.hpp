@@ -26,6 +26,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdlib.h>
+#include <filesystem>
 
 #include "Token.hpp"
 
@@ -33,14 +34,40 @@ class JsonLexer
 {
 public:
 
+    JsonLexer() :
+    source{},
+    sourcePath{""},
+    tokens{}
+    {
+    }
+
     JsonLexer(const std::string fname) :
     source{},
-    sourcePath{fname}
+    sourcePath{fname},
+    tokens{}
     {
+    }
+
+    JsonLexer(const char* fname) :
+    source{},
+    sourcePath{fname},
+    tokens{}
+    {
+    }
+
+    JsonLexer(const std::filesystem::path& name) :
+    source{},
+    tokens{},
+    sourcePath{name.string()}
+    {
+        
     }
 
     void ReadSourceFile()
     {
+        source = "";
+        tokens.clear();
+        if(sourcePath == "") throw std::runtime_error("No file path given!");
         std::ifstream stream{sourcePath};
         if(!stream) throw std::runtime_error("Could not open file!");
         std::ostringstream ss;
@@ -48,7 +75,27 @@ public:
         source = ss.str();
     }
 
+    void ReadSourceFile(const std::string& path)
+    {
+        sourcePath = path;
+        ReadSourceFile();
+    }
+
+    void ReadSourceFile(const char* path)
+    {
+        sourcePath = path;
+        ReadSourceFile();
+    }
+
+    void ReadSourceFile(const std::filesystem::path& path)
+    {
+        sourcePath = path.c_str();
+        ReadSourceFile();
+    }
+
     std::vector<Token> scanTokens() {
+        curser = 0;
+        curserStart = 0;
         while(!isEnd()){
             curserStart = curser;
             scanToken();

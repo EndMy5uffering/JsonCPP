@@ -38,6 +38,10 @@
 
 namespace JSON
 {
+    struct JSONElement;
+
+    typedef std::unordered_map<std::string, JSONElement> JSONObject;
+    typedef std::vector<JSONElement> JSONArray;
 
     enum ValueType
     {
@@ -76,6 +80,9 @@ namespace JSON
 
         BaseValue(BaseValue&&) noexcept = default;
         BaseValue& operator=(BaseValue&&) noexcept = default;
+
+        virtual std::string GetValueAsString() noexcept = 0;
+
     };
 
     template<typename T>
@@ -96,6 +103,7 @@ namespace JSON
         T& GetValue() { return value;}
         const T& GetValue() const { return value; }
 
+        std::string GetValueAsString() noexcept override { return ""; }
     };
 
     struct JSONElement
@@ -117,13 +125,37 @@ namespace JSON
         JSONElement(JSONElement&&) noexcept = default;
         JSONElement& operator=(JSONElement&&) noexcept = default;
 
+        bool operator==(ValueType type) noexcept
+        {
+            return this->valueType == type;
+        }
+
         ValueType GetValueType() { return valueType; }
+        bool IsOfType(ValueType type)
+        {
+            return this->valueType == type;
+        }
 
         template<typename T>
-        Value<T>& GetValueAs();
+        bool CanCastTo() { return false; }
 
         template<typename T>
-        bool TryGetValueAs(Value<T>*&);
+        T& GetValueAs() { throw std::runtime_error("No implementation for the given type!\nOnly supported types: [ double, bool, std::string, JSON::JSONArray, JSON::JSONObject ]\n"); }
+
+        template<typename T>
+        const T& GetValueAs() const { throw std::runtime_error("No implementation for the given const type!\nOnly supported types: [ double, bool, std::string, JSON::JSONArray, JSON::JSONObject ]\n"); }
+
+        template<typename T>
+        bool TryGetValueAs(T*& in) { 
+            std::cerr << "Unsupported type cast!\nOnly supports types: [ double, bool, std::string, JSON::JSONArray, JSON::JSONObject ]\n";
+            in = nullptr; 
+            return false; 
+        }
+
+        std::string GetValueAsString() noexcept
+        {
+            return this->value->GetValueAsString();
+        }
 
         std::string GetTypeAsString()
         {
@@ -132,22 +164,54 @@ namespace JSON
 
     };
 
-    typedef std::unordered_map<std::string, JSONElement> JSONContainer;
-    typedef std::vector<JSONElement> JSONArrayContainer;
-
     class JSONParser
     {
         public:
 
+            JSONParser()
+            {}                
+
             JSONParser(const std::string fname)
             : lexer{fname}
-            {
-                
-            }
+            {}
+
+            JSONParser(const char* fname)
+            : lexer{fname}
+            {}
+
+            JSONParser(const std::filesystem::path& fname)
+            : lexer{fname}
+            {}
 
             JSONElement Parse()
             {
                 lexer.ReadSourceFile();
+                return _parse();
+            }
+
+            JSONElement Parse(const char* fname)
+            {
+                lexer.ReadSourceFile(fname);
+                return _parse();
+            }
+
+            JSONElement Parse(const std::string& fname)
+            {
+                lexer.ReadSourceFile(fname);
+                return _parse();
+            }
+
+            JSONElement Parse(const std::filesystem::path& fname)
+            {
+                lexer.ReadSourceFile(fname);
+                return _parse();
+            }
+
+        private:
+
+            JSONElement _parse()
+            {
+                curser = 0;
                 tokens = lexer.scanTokens();
                 if(Peek().tokenType != TokenType::LBRACE && Peek().tokenType != TokenType::LBRACKET)
                     throw std::runtime_error("Invalid token at start of file!");
@@ -156,11 +220,9 @@ namespace JSON
                 return {JSON::ValueType::INVALID, nullptr};
             }
 
-        private:
-
             JSONElement BeginParseObject()
             {
-                JSONContainer container;
+                JSONObject container;
                 JSONElement result{JSON::ValueType::OBJECT, nullptr};
 
                 while(!isEnd())
@@ -170,7 +232,7 @@ namespace JSON
                     if(key.getTokenType() == TokenType::RBRACE) 
                     {
                         if(container.size() != 0) throw std::runtime_error("Unexpected token! To early close of object!");
-                        result.value = std::make_unique<Value<JSON::JSONContainer>>(std::move(container));
+                        result.value = std::make_unique<Value<JSON::JSONObject>>(std::move(container));
                         return result; // early close for empty object;
                     }
 
@@ -246,13 +308,13 @@ namespace JSON
                     case TokenType::COMMA: GetNext(); break;
                     case TokenType::RBRACE: 
                         GetNext(); 
-                        result.value = std::make_unique<Value<JSON::JSONContainer>>(std::move(container));
+                        result.value = std::make_unique<Value<JSON::JSONObject>>(std::move(container));
                         return result;
                     default:
                         std::runtime_error(JSON_UNEXPECTED_TOKEN_TEXT);
                     }
                 }
-                result.value = std::make_unique<Value<JSON::JSONContainer>>(std::move(container));
+                result.value = std::make_unique<Value<JSON::JSONObject>>(std::move(container));
                 return result;
             }
 
@@ -260,7 +322,7 @@ namespace JSON
 
             JSONElement BeginParseArray()
             {
-                JSONArrayContainer container;
+                JSONArray container;
                 JSONElement result{JSON::ValueType::ARRAY, nullptr};
 
                 while(!isEnd())
@@ -321,7 +383,7 @@ namespace JSON
                         break;
                     }
                     case TokenType::RBRACKET: 
-                        result.value = std::make_unique<Value<JSON::JSONArrayContainer>>(std::move(container));
+                        result.value = std::make_unique<Value<JSON::JSONArray>>(std::move(container));
                         return result; //Early exit [ ] <- empty or also directly after a value
 
                     default:
@@ -335,13 +397,13 @@ namespace JSON
                         break;
                     case TokenType::RBRACKET: 
                         GetNext(); 
-                        result.value = std::make_unique<Value<JSON::JSONArrayContainer>>(std::move(container));
+                        result.value = std::make_unique<Value<JSON::JSONArray>>(std::move(container));
                         return result;
                     default:
                         std::runtime_error(JSON_UNEXPECTED_TOKEN_TEXT);
                     }
                 }
-                result.value = std::make_unique<Value<JSON::JSONArrayContainer>>(std::move(container));
+                result.value = std::make_unique<Value<JSON::JSONArray>>(std::move(container));
                 return result;
             }
 
@@ -377,42 +439,87 @@ namespace JSON
 
 #define GET_VALUE_AS(TYPE, VALUE_TYPE) \
 template<> \
-JSON::Value<TYPE>& JSON::JSONElement::GetValueAs<TYPE>() \
+TYPE& JSON::JSONElement::GetValueAs<TYPE>() \
 { \
     if(this->valueType != VALUE_TYPE) throw std::runtime_error("Value is not of type number"); \
     auto val = dynamic_cast<JSON::Value<TYPE>*>(this->value.get()); \
     if (!val) throw std::runtime_error("Wrong type"); \
-    return *val; \
+    return val->value; \
 }
 
 
 GET_VALUE_AS(double, JSON::ValueType::NUMBER_LITERAL)
 GET_VALUE_AS(std::string, JSON::ValueType::STRING_LITERAL)
 GET_VALUE_AS(bool, JSON::ValueType::BOOL_LITERAL)
-GET_VALUE_AS(JSON::JSONContainer, JSON::ValueType::OBJECT)
-GET_VALUE_AS(JSON::JSONArrayContainer, JSON::ValueType::ARRAY)
+GET_VALUE_AS(JSON::JSONObject, JSON::ValueType::OBJECT)
+GET_VALUE_AS(JSON::JSONArray, JSON::ValueType::ARRAY)
 
 #undef GET_VALUE_AS
 
 #define TRY_GET_VALUE_AS(TYPE, VALUE_TYPE) \
 template<> \
-bool JSON::JSONElement::TryGetValueAs<TYPE>(JSON::Value<TYPE>*& result) \
+bool JSON::JSONElement::TryGetValueAs<TYPE>(TYPE*& result) \
 { \
     result = nullptr; \
     if(this->valueType != VALUE_TYPE) return false; \
     auto val = dynamic_cast<JSON::Value<TYPE>*>(this->value.get()); \
     if (!val) return false; \
-    result = val; \
+    result = &(val->value); \
     return true; \
 }
 
 TRY_GET_VALUE_AS(double, JSON::ValueType::NUMBER_LITERAL)
 TRY_GET_VALUE_AS(std::string, JSON::ValueType::STRING_LITERAL)
 TRY_GET_VALUE_AS(bool, JSON::ValueType::BOOL_LITERAL)
-TRY_GET_VALUE_AS(JSON::JSONContainer, JSON::ValueType::OBJECT)
-TRY_GET_VALUE_AS(JSON::JSONArrayContainer, JSON::ValueType::ARRAY)
+TRY_GET_VALUE_AS(JSON::JSONObject, JSON::ValueType::OBJECT)
+TRY_GET_VALUE_AS(JSON::JSONArray, JSON::ValueType::ARRAY)
 
 #undef TRY_GET_VALUE_AS
 
+#define CAN_CAST_TO(TYPE, VALUE_TYPE)\
+template<>\
+bool JSON::JSONElement::CanCastTo<TYPE>(){ return this->valueType == VALUE_TYPE; }
+
+CAN_CAST_TO(double, JSON::ValueType::NUMBER_LITERAL)
+CAN_CAST_TO(std::string, JSON::ValueType::STRING_LITERAL)
+CAN_CAST_TO(bool, JSON::ValueType::BOOL_LITERAL)
+CAN_CAST_TO(JSON::JSONObject, JSON::ValueType::OBJECT)
+CAN_CAST_TO(JSON::JSONArray, JSON::ValueType::ARRAY)
+
+#undef CAN_CAST_TO
+
+template<>
+std::string JSON::Value<std::string>::GetValueAsString() noexcept { return "\"" + this->value + "\""; }
+template<>
+std::string JSON::Value<double>::GetValueAsString() noexcept { return std::to_string(this->value); }
+template<>
+std::string JSON::Value<bool>::GetValueAsString() noexcept { return this->value ? "True" : "False"; }
+template<>
+std::string JSON::Value<JSON::JSONArray>::GetValueAsString() noexcept {
+    std::stringstream ss;
+    ss << "[ ";
+    int count = 0;
+    for(auto& val : value)
+    {
+        count++;
+        ss << val.GetValueAsString() << ((count < value.size()) ? ", " : " ]");
+    } 
+    return ss.str(); 
+}
+template<>
+std::string JSON::Value<JSON::JSONObject>::GetValueAsString() noexcept 
+{
+    std::stringstream ss;
+    ss << "{ ";
+    int count = 0;
+    for(auto& [key, val] : value)
+    {
+        count++;
+        ss << "\"" << key << "\"" << ": " << val.GetValueAsString() << ((count < value.size()) ? ", " : " }");
+    }
+    return ss.str();
+}
+
+#undef JSON_UNEXPECTED_TOKEN_TEXT
 
 #endif // JSONPARSER_HPP
