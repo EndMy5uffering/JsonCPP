@@ -26,25 +26,25 @@ int main(void)
     JSON::JSONParser parser{"../testJSON/test_1.json"};
     JSON::JSONElement element = parser.Parse();
 
-    auto& container = element.GetValueAs<JSON::JSONContainer>();
+    auto& container = element.GetValueAs<JSON::JSONObject>();
 
-    auto& test = container.GetValue()["falseBoolean"];
-    auto& value = test.GetValueAs<bool>().GetValue();
+    auto& test = container["falseBoolean"];
+    auto& value = test.GetValueAs<bool>();
     std::cout << "Bool Value: " << value << "\n";
 
 
-    auto& test2 = container.GetValue()["simpleString"];
-    auto& sstring = test2.GetValueAs<std::string>().GetValue();
+    auto& test2 = container["simpleString"];
+    auto& sstring = test2.GetValueAs<std::string>();
     std::cout << "String Value: " << sstring << "\n";
 
-    JSON::Value<JSON::JSONContainer>* tryGetContainer;
-    if(element.TryGetValueAs<JSON::JSONContainer>(tryGetContainer))
+    JSON::JSONObject* tryGetContainer;
+    if(element.TryGetValueAs<JSON::JSONObject>(tryGetContainer))
     {
-        auto& value = tryGetContainer->GetValue()["simpleString"];
-        JSON::Value<std::string>* strValue;
-        if(value.TryGetValueAs<std::string>(strValue)) std::cout << "Value from try get: " << strValue->GetValue() << "\n";
+        auto& value = (*tryGetContainer)["simpleString"];
+        std::string* strValue;
+        if(value.TryGetValueAs<std::string>(strValue)) std::cout << "Value from try get: " << (*strValue) << "\n";
 
-        for(auto& [key, value] : tryGetContainer->GetValue())
+        for(auto& [key, value] : (*tryGetContainer))
         {
             std::cout << key << " : " << value.GetTypeAsString() << "\n";
         }
