@@ -152,7 +152,7 @@ namespace JSON
             return false; 
         }
 
-        std::string GetValueAsString() noexcept
+        std::string ToString() noexcept
         {
             if(this->valueType == ValueType::NULL_LITERAL) return "null";
             if(this->valueType == ValueType::INVALID) return "";
@@ -505,7 +505,7 @@ std::string JSON::Value<JSON::JSONArray>::GetValueAsString() noexcept {
     for(auto& val : value)
     {
         count++;
-        ss << val.GetValueAsString() << ((count < value.size()) ? ", " : " ]");
+        ss << val.ToString() << ((count < value.size()) ? ", " : " ]");
     } 
     return ss.str(); 
 }
@@ -518,7 +518,7 @@ std::string JSON::Value<JSON::JSONObject>::GetValueAsString() noexcept
     for(auto& [key, val] : value)
     {
         count++;
-        ss << "\"" << key << "\"" << ": " << val.GetValueAsString() << ((count < value.size()) ? ", " : " }");
+        ss << "\"" << key << "\"" << ": " << val.ToString() << ((count < value.size()) ? ", " : " }");
     }
     return ss.str();
 }
