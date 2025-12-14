@@ -154,6 +154,9 @@ namespace JSON
 
         std::string GetValueAsString() noexcept
         {
+            if(this->valueType == ValueType::NULL_LITERAL) return "null";
+            if(this->valueType == ValueType::INVALID) return "";
+            if(this->value == nullptr) return "";
             return this->value->GetValueAsString();
         }
 

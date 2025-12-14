@@ -50,7 +50,7 @@ int main(void)
         }
     }
 
-
+    std::cout << "Back to string: " << element.GetValueAsString() << "\n";
 
     return 0;
 }
