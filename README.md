@@ -18,9 +18,9 @@ This project is a simple JSON parser written in C++. It includes a simple lexer 
 
 ### 1. Parsing
 
-`JSONParser` processes the token list and constructs a tree of `JSONElement` objects.
+`JSONParser` processes the token list and constructs a tree of `Element` objects.
 
-Each `JSONElement` stores:
+Each `Element` stores:
 
 - a `ValueType` enum  
 - a `std::unique_ptr<BaseValue>` containing the unwrapped value
@@ -29,8 +29,8 @@ JSON types map to:
 
 | JSON Type | Internal Representation |
 |-----------|--------------------------|
-| object    | `std::unordered_map<std::string, JSONElement>` |
-| array     | `std::vector<JSONElement>` |
+| object    | `std::unordered_map<std::string, Element>` |
+| array     | `std::vector<Element>` |
 | string    | `Value<std::string>` |
 | number    | `Value<double>` |
 | boolean   | `Value<bool>` |
@@ -47,32 +47,90 @@ Example usage:
 ```cpp
 #include "JsonParser.hpp"
 
-int main() 
+int main(void) 
 {
+    /* 
+        Create Json parser to read in file 
+        Path to file is optional and can be supplied in JSONParser::Parse as well
+    */
     JSON::JSONParser parser{"../testJSON/test_1.json"};
-    JSON::JSONElement root = parser.Parse();
 
-    auto& obj = root.GetValueAs<JSON::JSONContainer>().GetValue();
+    /* Reads file and creates Json object tree structure */
+    JSON::Element element = parser.Parse();
 
-    bool flag = obj["falseBoolean"].GetValueAs<bool>().GetValue();
-    std::cout << "Bool: " << flag << "\n";
+    /* 
+        Access contained value 
+        GetValueAs returns a reference to the contained JSON::JObject
+    */
+    auto& container = element.GetValueAs<JSON::JObject>();
 
-    std::string text = obj["simpleString"].GetValueAs<std::string>().GetValue();
-    std::cout << "String: " << text << "\n";
+    /* 
+        Getting a value at a key position 
+        Returns a reference to an JSON:Element
+    */
+    auto& test = container["falseBoolean"];
 
-    JSON::Value<JSON::JSONContainer>* tryGetContainer;
-    if(root.TryGetValueAs<JSON::JSONContainer>(tryGetContainer))
+    /* Getting the value ... again */
+    auto& value = test.GetValueAs<bool>();
+    std::cout << "Bool Value: " << value << "\n";
+
+    /* Same as above but now its a string */
+    auto& test2 = container["simpleString"];
+    auto& sstring = test2.GetValueAs<std::string>();
+    std::cout << "String Value: " << sstring << "\n";
+
+    /* Itterating over key set in the JSON::JObject */
+    JSON::JObject* tryGetContainer;
+    /* Using TryGetValueAs to test if value is of type JSON::JObject */
+    if(element.TryGetValueAs<JSON::JObject>(tryGetContainer))
     {
-        auto& value = tryGetContainer->GetValue()["simpleInt"];
-        JSON::Value<double>* numValue;
-        if(value.TryGetValueAs<double>(numValue)) 
-            std::cout << "Value from try get: " << numValue->GetValue() << "\n";
-        
-        for(auto& [key, value] : tryGetContainer->GetValue())
+        auto& value = (*tryGetContainer)["simpleString"];
+        std::string* strValue;
+        if(value.TryGetValueAs<std::string>(strValue)) std::cout << "Value from try get: " << (*strValue) << "\n";
+
+        for(auto& [key, value] : (*tryGetContainer))
         {
             std::cout << key << " : " << value.GetTypeAsString() << "\n";
         }
     }
+
+    /* Not formated to string */
+    std::cout << "Back to string: \n" << element.ToString() << "\n\n\n";
+
+    /* Format with indents and newlines */
+    std::cout << "Back to string indented: \n" << element.ToString(4) << "\n\n\n";
+
+    /* Save elements to file with given path (folders along path will be created) */
+    std::cout << "Written JSON: " << parser.SaveToFile(element, "../out/test/output.json") << "\n";
+
+    /* Creates a new json object */
+    JSON::Element newElement = JSON::Element::From<JSON::JObject>();
+    /* Elements of type JSON::JObject allow for ["key"] access */
+    /* Elements of type JSON::JArray allow for [number] access */
+    newElement["a"] = JSON::Element::From(42);
+    newElement["b"] = JSON::Element::From<std::string>("asdf");
+    newElement["c"] = JSON::Element::From<nullptr_t>();
+
+    /* Does not exist but will be created */
+    newElement["empty"];
+
+    newElement["d"] = JSON::Element::From<JSON::JObject>();
+    newElement["d"]["da"] = JSON::Element::From(180);
+    newElement["d"]["arr"] = JSON::Element::From<JSON::JArray>();
+
+    /* Assigning multiple values to an array */
+    newElement["d"]["arr"] << 1 << 2 << 3 << std::string("asdf");
+
+    /* Runs and returns number */
+    if(int number; newElement["a"] >> number) std::cout << "Number: " << number << "\n";
+
+    /* Does not run as "b" is a string */
+    if(int number2; newElement["b"] >> number2) std::cout << "Number2: " << number2 << "\n";
+
+    /* Does not run as "someString" does not exist as a key but is created */
+    if(std::string someString; newElement["someString"] >> someString) std::cout << "Some String: " << someString << "\n";
+
+    std::cout << "New json object: " << newElement.ToString(4) << "\n";
 
     return 0;
 }
@@ -98,6 +156,27 @@ emptyObject : OBJECT
 stringWithEscapes : STRING_LITERAL
 emptyArray : ARRAY
 [...]
+```
+
+Created JSON object from newElement in main above:
+
+```JSON
+{
+    "someString": null,
+    "c": null,
+    "b": "asdf",
+    "d": {
+        "arr": [
+            1,
+            2,
+            3,
+            "asdf"
+        ],
+        "da": 180
+    },
+    "empty": null,
+    "a": 42
+}
 ```
 
 ### Error Handling
