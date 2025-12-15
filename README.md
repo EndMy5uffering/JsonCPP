@@ -111,6 +111,9 @@ int main(void)
     newElement["b"] = JSON::Element::From<std::string>("asdf");
     newElement["c"] = JSON::Element::From<nullptr_t>();
 
+    /* Removing null value again */
+    newElement.Remove("c");
+
     /* Does not exist but will be created */
     newElement["empty"];
 
@@ -120,6 +123,19 @@ int main(void)
 
     /* Assigning multiple values to an array */
     newElement["d"]["arr"] << 1 << 2 << 3 << std::string("asdf");
+
+    /* Creating tmp object "by mistake" */
+    newElement["tmp"] = JSON::Element::From<JSON::JObject>();
+    /* Adding an array ... by "MISTAKE" */
+    newElement["tmp"]["arr2"] = JSON::Element::From<JSON::JArray>();
+    /* Filling the array still totaly by "MisTaKe" */
+    newElement["tmp"]["arr2"] << 11 << 22 << 33 << std::string("xyz");
+
+    /* Removing all content from tmp object as it was a mistake :D */
+    /* Leaving tmp for later as null value */
+    newElement["tmp"].Remove();
+
+    //newElement.Remove("tmp") // <-- removes tmp from the root structure as well
 
     /* Runs and returns number */
     if(int number; newElement["a"] >> number) std::cout << "Number: " << number << "\n";
@@ -163,7 +179,7 @@ Created JSON object from newElement in main above:
 ```JSON
 {
     "someString": null,
-    "c": null,
+    "tmp": null,
     "b": "asdf",
     "d": {
         "arr": [
