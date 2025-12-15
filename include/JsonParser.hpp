@@ -294,6 +294,27 @@ namespace JSON
             return true;
         }
 
+        bool Remove(const std::string& key)
+        {
+            if(this->valueType != ValueType::OBJECT) false;
+            return GetValueAs<JObject>().erase(key) > 0;
+        }
+
+        bool Remove(size_t at)
+        {
+            if(this->valueType != ValueType::ARRAY) false;
+            auto& arr = GetValueAs<JArray>();
+            arr.erase(arr.begin() + at);
+            return true;
+        }
+
+        bool Remove()
+        {
+            this->value = std::make_unique<Value<nullptr_t>>(nullptr);
+            this->valueType = ValueType::NULL_LITERAL;
+            return true;
+        }
+
     };
 
     class JSONParser
