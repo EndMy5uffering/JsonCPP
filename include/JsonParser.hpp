@@ -30,6 +30,7 @@
 #include <unordered_set>
 #include <string>
 #include <memory>
+#include <type_traits>
 #include <stack>
 #include "Token.hpp"
 #include "TokenType.hpp"
@@ -40,9 +41,21 @@
 namespace JSON
 {
     struct JSONElement;
-
+    
     typedef std::unordered_map<std::string, JSONElement> JSONObject;
     typedef std::vector<JSONElement> JSONArray;
+
+    template<typename T> struct allowed_types       : std::false_type {};
+
+    template<> struct allowed_types<double>         : std::true_type {};
+    template<> struct allowed_types<int>            : std::true_type {};
+    template<> struct allowed_types<long>           : std::true_type {};
+    template<> struct allowed_types<float>          : std::true_type {};
+    template<> struct allowed_types<std::string>    : std::true_type {};
+    template<> struct allowed_types<bool>           : std::true_type {};
+    template<> struct allowed_types<nullptr_t>      : std::true_type {};
+    template<> struct allowed_types<JSONObject>     : std::true_type {};
+    template<> struct allowed_types<JSONArray>      : std::true_type {};
 
     enum ValueType
     {
@@ -54,6 +67,20 @@ namespace JSON
         NULL_LITERAL,
         INVALID
     };
+
+    template<typename T>
+    struct ValueType_of; 
+
+    template<> struct ValueType_of<double>      { static constexpr ValueType value = ValueType::NUMBER_LITERAL; };
+    template<> struct ValueType_of<int>         { static constexpr ValueType value = ValueType::NUMBER_LITERAL; };
+    template<> struct ValueType_of<long>        { static constexpr ValueType value = ValueType::NUMBER_LITERAL; };
+    template<> struct ValueType_of<float>       { static constexpr ValueType value = ValueType::NUMBER_LITERAL; };
+    template<> struct ValueType_of<std::string> { static constexpr ValueType value = ValueType::STRING_LITERAL; };
+    template<> struct ValueType_of<bool>        { static constexpr ValueType value = ValueType::BOOL_LITERAL;   };
+    template<> struct ValueType_of<nullptr_t>   { static constexpr ValueType value = ValueType::NULL_LITERAL;   };
+    template<> struct ValueType_of<JSONObject>  { static constexpr ValueType value = ValueType::OBJECT;         };
+    template<> struct ValueType_of<JSONArray>   { static constexpr ValueType value = ValueType::ARRAY;          };
+    template<> struct ValueType_of<void>        { static constexpr ValueType value = ValueType::INVALID;        };
 
     static std::string ValueTypeToString(ValueType type)
     {
@@ -146,19 +173,34 @@ namespace JSON
         }
 
         template<typename T>
-        bool CanCastTo() { return false; }
+        bool CanCastTo() { return this->valueType == ValueType_of<T>::value; }
 
         template<typename T>
-        T& GetValueAs() { throw std::runtime_error("No implementation for the given type!\nOnly supported types: [ double, bool, std::string, JSON::JSONArray, JSON::JSONObject ]\n"); }
+        T& GetValueAs() 
+        { 
+            if(!allowed_types<T>::value) throw std::runtime_error("Type not supported");
+            ValueType vtype = ValueType_of<T>::value;
+            if(this->valueType != vtype) throw std::runtime_error("Value is not of type number");
+            auto val = dynamic_cast<JSON::Value<T>*>(this->value.get());
+            if (!val) throw std::runtime_error("Wrong type");
+            return val->value;
+        }
 
         template<typename T>
         const T& GetValueAs() const { throw std::runtime_error("No implementation for the given const type!\nOnly supported types: [ double, bool, std::string, JSON::JSONArray, JSON::JSONObject ]\n"); }
 
         template<typename T>
         bool TryGetValueAs(T*& in) { 
-            std::cerr << "Unsupported type cast!\nOnly supports types: [ double, bool, std::string, JSON::JSONArray, JSON::JSONObject ]\n";
-            in = nullptr; 
-            return false; 
+            in = nullptr;
+            if(!allowed_types<T>::value) return false;
+
+            ValueType vtype = ValueType_of<T>::value;
+            if(this->valueType != vtype) return false;
+            
+            auto val = dynamic_cast<JSON::Value<T>*>(this->value.get());
+            if (!val) return false;
+            in = &(val->value);
+            return true;
         }
 
         std::string ToString() noexcept
@@ -185,6 +227,14 @@ namespace JSON
             if(this->valueType == ValueType::INVALID) return "";
             if(this->value == nullptr) return "";
             return this->value->ToStringFormater(indent, offset);
+        }
+
+        template<ValueType type, typename V>
+        static inline JSONElement From(V value) 
+        { 
+            if(!allowed_types<V>::value) throw std::runtime_error("Unsopported type surplyed");
+            ValueType vtype = ValueType_of<V>::value;
+            return JSON::JSONElement{vtype, std::make_unique<JSON::Value<V>>(std::move(value))};    
         }
 
     };
@@ -483,57 +533,6 @@ namespace JSON
         }
     } // namespace
 }
-
-#define GET_VALUE_AS(TYPE, VALUE_TYPE) \
-template<> \
-TYPE& JSON::JSONElement::GetValueAs<TYPE>() \
-{ \
-    if(this->valueType != VALUE_TYPE) throw std::runtime_error("Value is not of type number"); \
-    auto val = dynamic_cast<JSON::Value<TYPE>*>(this->value.get()); \
-    if (!val) throw std::runtime_error("Wrong type"); \
-    return val->value; \
-}
-
-
-GET_VALUE_AS(double, JSON::ValueType::NUMBER_LITERAL)
-GET_VALUE_AS(std::string, JSON::ValueType::STRING_LITERAL)
-GET_VALUE_AS(bool, JSON::ValueType::BOOL_LITERAL)
-GET_VALUE_AS(JSON::JSONObject, JSON::ValueType::OBJECT)
-GET_VALUE_AS(JSON::JSONArray, JSON::ValueType::ARRAY)
-
-#undef GET_VALUE_AS
-
-#define TRY_GET_VALUE_AS(TYPE, VALUE_TYPE) \
-template<> \
-bool JSON::JSONElement::TryGetValueAs<TYPE>(TYPE*& result) \
-{ \
-    result = nullptr; \
-    if(this->valueType != VALUE_TYPE) return false; \
-    auto val = dynamic_cast<JSON::Value<TYPE>*>(this->value.get()); \
-    if (!val) return false; \
-    result = &(val->value); \
-    return true; \
-}
-
-TRY_GET_VALUE_AS(double, JSON::ValueType::NUMBER_LITERAL)
-TRY_GET_VALUE_AS(std::string, JSON::ValueType::STRING_LITERAL)
-TRY_GET_VALUE_AS(bool, JSON::ValueType::BOOL_LITERAL)
-TRY_GET_VALUE_AS(JSON::JSONObject, JSON::ValueType::OBJECT)
-TRY_GET_VALUE_AS(JSON::JSONArray, JSON::ValueType::ARRAY)
-
-#undef TRY_GET_VALUE_AS
-
-#define CAN_CAST_TO(TYPE, VALUE_TYPE)\
-template<>\
-bool JSON::JSONElement::CanCastTo<TYPE>(){ return this->valueType == VALUE_TYPE; }
-
-CAN_CAST_TO(double, JSON::ValueType::NUMBER_LITERAL)
-CAN_CAST_TO(std::string, JSON::ValueType::STRING_LITERAL)
-CAN_CAST_TO(bool, JSON::ValueType::BOOL_LITERAL)
-CAN_CAST_TO(JSON::JSONObject, JSON::ValueType::OBJECT)
-CAN_CAST_TO(JSON::JSONArray, JSON::ValueType::ARRAY)
-
-#undef CAN_CAST_TO
 
 template<>
 std::string JSON::Value<std::string>::GetValueAsString() noexcept { return "\"" + this->value + "\""; }
