@@ -50,7 +50,8 @@ int main(void)
         }
     }
 
-    std::cout << "Back to string: " << element.ToString() << "\n";
+    std::cout << "Back to string: " << element.ToString() << "\n\n\n";
+    std::cout << "Back to string indented: " << element.ToString(4) << "\n\n\n";
 
     return 0;
 }

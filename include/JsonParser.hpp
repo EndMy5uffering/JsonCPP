@@ -82,7 +82,12 @@ namespace JSON
         BaseValue& operator=(BaseValue&&) noexcept = default;
 
         virtual std::string GetValueAsString() noexcept = 0;
+        virtual std::string GetValueAsString(int indent) noexcept = 0;
 
+    private:
+        virtual std::string ToStringFormater(int indent, int baseoffset) noexcept = 0;
+
+        friend struct JSONElement;
     };
 
     template<typename T>
@@ -104,6 +109,9 @@ namespace JSON
         const T& GetValue() const { return value; }
 
         std::string GetValueAsString() noexcept override { return ""; }
+        std::string GetValueAsString(int indent) noexcept override { return ToStringFormater(indent, indent); }
+    private:
+        std::string ToStringFormater(int indent, int baseoffset) noexcept override { return ""; }
     };
 
     struct JSONElement
@@ -160,9 +168,22 @@ namespace JSON
             return this->value->GetValueAsString();
         }
 
+        std::string ToString(int indent) noexcept
+        {
+            return GetStringFormated(indent, indent);
+        }
+
         std::string GetTypeAsString()
         {
             return ValueTypeToString(valueType);
+        }
+
+        std::string GetStringFormated(int indent, int offset) noexcept
+        {
+            if(this->valueType == ValueType::NULL_LITERAL) return "null";
+            if(this->valueType == ValueType::INVALID) return "";
+            if(this->value == nullptr) return "";
+            return this->value->ToStringFormater(indent, offset);
         }
 
     };
@@ -438,6 +459,15 @@ namespace JSON
             const Token EMPTY_TOKEN{TokenType::INVALID, "", nullptr};
     };
 
+    namespace
+    {
+        inline std::string GetIndents(int indent)
+        {
+            int tabs = indent / 4;
+            int rest = indent - tabs;
+            return std::string(tabs, '\t') + std::string(rest, ' ');
+        }
+    } // namespace
 }
 
 #define GET_VALUE_AS(TYPE, VALUE_TYPE) \
@@ -519,6 +549,46 @@ std::string JSON::Value<JSON::JSONObject>::GetValueAsString() noexcept
     {
         count++;
         ss << "\"" << key << "\"" << ": " << val.ToString() << ((count < value.size()) ? ", " : " }");
+    }
+    return ss.str();
+}
+
+
+
+template<>
+std::string JSON::Value<std::string>::ToStringFormater(int indent, int offset) noexcept { return "\"" + this->value + "\""; }
+template<>
+std::string JSON::Value<double>::ToStringFormater(int indent, int offset) noexcept { return std::to_string(this->value); }
+template<>
+std::string JSON::Value<bool>::ToStringFormater(int indent, int offset) noexcept { return this->value ? "True" : "False"; }
+template<>
+std::string JSON::Value<JSON::JSONArray>::ToStringFormater(int indent, int offset) noexcept {
+    std::stringstream ss;
+    std::string spacing = JSON::GetIndents(indent);
+    std::string ValSpacing = JSON::GetIndents(indent + offset);
+    if(value.size() == 0) { ss << "[]"; return ss.str(); }
+    ss << "[\n";
+    int count = 0;
+    for(auto& val : value)
+    {
+        count++;
+        ss << ValSpacing << val.GetStringFormated(indent + offset, offset) << ((count < value.size()) ? ",\n" : "\n" + spacing + "]");
+    } 
+    return ss.str(); 
+}
+template<>
+std::string JSON::Value<JSON::JSONObject>::ToStringFormater(int indent, int offset) noexcept 
+{
+    std::stringstream ss;
+    std::string spacing = JSON::GetIndents(indent);
+    std::string KeySpacing = JSON::GetIndents(indent + offset);
+    if(value.size() == 0) { ss << "{}"; return ss.str(); }
+    ss << "{\n";
+    int count = 0;
+    for(auto& [key, val] : value)
+    {
+        count++;
+        ss << KeySpacing << "\"" << key << "\"" << ": " << val.GetStringFormated(indent + offset, offset) << ((count < value.size()) ? ",\n" : "\n" + spacing + "}");
     }
     return ss.str();
 }
