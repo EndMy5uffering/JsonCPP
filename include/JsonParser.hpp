@@ -24,6 +24,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <ios>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -170,7 +171,7 @@ namespace JSON
 
         std::string ToString(int indent) noexcept
         {
-            return GetStringFormated(indent, indent);
+            return GetStringFormated(0, indent);
         }
 
         std::string GetTypeAsString()
@@ -229,6 +230,21 @@ namespace JSON
             {
                 lexer.ReadSourceFile(fname);
                 return _parse();
+            }
+
+            bool SaveToFile(JSONElement& jsonObj, const std::string& path) noexcept
+            {
+                std::filesystem::path p{path};
+                if(!std::filesystem::exists(p.parent_path())) 
+                {
+                    std::filesystem::create_directories(p.parent_path());
+                }
+                std::fstream stream;
+                stream.open(path, std::fstream::out);
+                if(!stream) return false;
+                stream << jsonObj.ToString(4);
+                stream.close();
+                return true;
             }
 
         private:
@@ -463,9 +479,7 @@ namespace JSON
     {
         inline std::string GetIndents(int indent)
         {
-            int tabs = indent / 4;
-            int rest = indent - tabs;
-            return std::string(tabs, '\t') + std::string(rest, ' ');
+            return std::string(indent, ' ');
         }
     } // namespace
 }
@@ -526,7 +540,7 @@ std::string JSON::Value<std::string>::GetValueAsString() noexcept { return "\"" 
 template<>
 std::string JSON::Value<double>::GetValueAsString() noexcept { return std::to_string(this->value); }
 template<>
-std::string JSON::Value<bool>::GetValueAsString() noexcept { return this->value ? "True" : "False"; }
+std::string JSON::Value<bool>::GetValueAsString() noexcept { return this->value ? "true" : "false"; }
 template<>
 std::string JSON::Value<JSON::JSONArray>::GetValueAsString() noexcept {
     std::stringstream ss;
@@ -560,7 +574,7 @@ std::string JSON::Value<std::string>::ToStringFormater(int indent, int offset) n
 template<>
 std::string JSON::Value<double>::ToStringFormater(int indent, int offset) noexcept { return std::to_string(this->value); }
 template<>
-std::string JSON::Value<bool>::ToStringFormater(int indent, int offset) noexcept { return this->value ? "True" : "False"; }
+std::string JSON::Value<bool>::ToStringFormater(int indent, int offset) noexcept { return this->value ? "true" : "false"; }
 template<>
 std::string JSON::Value<JSON::JSONArray>::ToStringFormater(int indent, int offset) noexcept {
     std::stringstream ss;
@@ -572,8 +586,9 @@ std::string JSON::Value<JSON::JSONArray>::ToStringFormater(int indent, int offse
     for(auto& val : value)
     {
         count++;
-        ss << ValSpacing << val.GetStringFormated(indent + offset, offset) << ((count < value.size()) ? ",\n" : "\n" + spacing + "]");
+        ss << ValSpacing << val.GetStringFormated(indent + offset, offset) << ((count < value.size()) ? ",\n" : "\n");
     } 
+    ss << spacing << "]";
     return ss.str(); 
 }
 template<>
@@ -588,8 +603,9 @@ std::string JSON::Value<JSON::JSONObject>::ToStringFormater(int indent, int offs
     for(auto& [key, val] : value)
     {
         count++;
-        ss << KeySpacing << "\"" << key << "\"" << ": " << val.GetStringFormated(indent + offset, offset) << ((count < value.size()) ? ",\n" : "\n" + spacing + "}");
+        ss << KeySpacing << "\"" << key << "\"" << ": " << val.GetStringFormated(indent + offset, offset) << ((count < value.size()) ? ",\n" : "\n");
     }
+    ss << spacing << "}";
     return ss.str();
 }
 

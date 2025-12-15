@@ -50,8 +50,10 @@ int main(void)
         }
     }
 
-    std::cout << "Back to string: " << element.ToString() << "\n\n\n";
-    std::cout << "Back to string indented: " << element.ToString(4) << "\n\n\n";
+    std::cout << "Back to string: \n" << element.ToString() << "\n\n\n";
+    std::cout << "Back to string indented: \n" << element.ToString(4) << "\n\n\n";
+
+    std::cout << "Written JSON: " << parser.SaveToFile(element, "../out/test/output.json") << "\n";
 
     return 0;
 }
