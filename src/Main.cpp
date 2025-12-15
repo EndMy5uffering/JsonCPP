@@ -24,9 +24,9 @@ int main(void)
     //JSON::Parse("../test_1.json");
 
     JSON::JSONParser parser{"../testJSON/test_1.json"};
-    JSON::JSONElement element = parser.Parse();
+    JSON::Element element = parser.Parse();
 
-    auto& container = element.GetValueAs<JSON::JSONObject>();
+    auto& container = element.GetValueAs<JSON::JObject>();
 
     auto& test = container["falseBoolean"];
     auto& value = test.GetValueAs<bool>();
@@ -37,8 +37,8 @@ int main(void)
     auto& sstring = test2.GetValueAs<std::string>();
     std::cout << "String Value: " << sstring << "\n";
 
-    JSON::JSONObject* tryGetContainer;
-    if(element.TryGetValueAs<JSON::JSONObject>(tryGetContainer))
+    JSON::JObject* tryGetContainer;
+    if(element.TryGetValueAs<JSON::JObject>(tryGetContainer))
     {
         auto& value = (*tryGetContainer)["simpleString"];
         std::string* strValue;
@@ -54,6 +54,15 @@ int main(void)
     std::cout << "Back to string indented: \n" << element.ToString(4) << "\n\n\n";
 
     std::cout << "Written JSON: " << parser.SaveToFile(element, "../out/test/output.json") << "\n";
+
+
+    JSON::Element newElement = JSON::Element::From<JSON::JObject>();
+    newElement.GetValueAs<JSON::JObject>()["a"] = JSON::Element::From(42);
+    newElement.GetValueAs<JSON::JObject>()["b"] = JSON::Element::From<std::string>("asdf");
+    newElement.GetValueAs<JSON::JObject>()["c"] = JSON::Element::From<nullptr_t>();
+
+    std::cout << "Written JSON 2: " << parser.SaveToFile(newElement, "../out/test/output2.json") << "\n";
+
 
     return 0;
 }

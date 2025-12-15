@@ -40,10 +40,10 @@
 
 namespace JSON
 {
-    struct JSONElement;
+    struct Element;
     
-    typedef std::unordered_map<std::string, JSONElement> JSONObject;
-    typedef std::vector<JSONElement> JSONArray;
+    typedef std::unordered_map<std::string, Element> JObject;
+    typedef std::vector<Element> JArray;
 
     template<typename T> struct allowed_types       : std::false_type {};
 
@@ -54,8 +54,8 @@ namespace JSON
     template<> struct allowed_types<std::string>    : std::true_type {};
     template<> struct allowed_types<bool>           : std::true_type {};
     template<> struct allowed_types<nullptr_t>      : std::true_type {};
-    template<> struct allowed_types<JSONObject>     : std::true_type {};
-    template<> struct allowed_types<JSONArray>      : std::true_type {};
+    template<> struct allowed_types<JObject>     : std::true_type {};
+    template<> struct allowed_types<JArray>      : std::true_type {};
 
     enum ValueType
     {
@@ -78,8 +78,8 @@ namespace JSON
     template<> struct ValueType_of<std::string> { static constexpr ValueType value = ValueType::STRING_LITERAL; };
     template<> struct ValueType_of<bool>        { static constexpr ValueType value = ValueType::BOOL_LITERAL;   };
     template<> struct ValueType_of<nullptr_t>   { static constexpr ValueType value = ValueType::NULL_LITERAL;   };
-    template<> struct ValueType_of<JSONObject>  { static constexpr ValueType value = ValueType::OBJECT;         };
-    template<> struct ValueType_of<JSONArray>   { static constexpr ValueType value = ValueType::ARRAY;          };
+    template<> struct ValueType_of<JObject>  { static constexpr ValueType value = ValueType::OBJECT;         };
+    template<> struct ValueType_of<JArray>   { static constexpr ValueType value = ValueType::ARRAY;          };
     template<> struct ValueType_of<void>        { static constexpr ValueType value = ValueType::INVALID;        };
 
     static std::string ValueTypeToString(ValueType type)
@@ -115,7 +115,7 @@ namespace JSON
     private:
         virtual std::string ToStringFormater(int indent, int baseoffset) noexcept = 0;
 
-        friend struct JSONElement;
+        friend struct Element;
     };
 
     template<typename T>
@@ -142,24 +142,24 @@ namespace JSON
         std::string ToStringFormater(int indent, int baseoffset) noexcept override { return ""; }
     };
 
-    struct JSONElement
+    struct Element
     {
         ValueType valueType;
         std::unique_ptr<BaseValue> value;
 
-        JSONElement() 
+        Element() 
         : valueType(ValueType::INVALID), value(nullptr) {}
 
-        JSONElement(ValueType t, std::unique_ptr<BaseValue>&& baseValue)
+        Element(ValueType t, std::unique_ptr<BaseValue>&& baseValue)
             : valueType(t),
             value(std::move(baseValue))
         {}
 
-        JSONElement(const JSONElement&) = delete;
-        JSONElement& operator=(const JSONElement&) = delete;
+        Element(const Element&) = delete;
+        Element& operator=(const Element&) = delete;
 
-        JSONElement(JSONElement&&) noexcept = default;
-        JSONElement& operator=(JSONElement&&) noexcept = default;
+        Element(Element&&) noexcept = default;
+        Element& operator=(Element&&) noexcept = default;
 
         bool operator==(ValueType type) noexcept
         {
@@ -187,7 +187,7 @@ namespace JSON
         }
 
         template<typename T>
-        const T& GetValueAs() const { throw std::runtime_error("No implementation for the given const type!\nOnly supported types: [ double, bool, std::string, JSON::JSONArray, JSON::JSONObject ]\n"); }
+        const T& GetValueAs() const { throw std::runtime_error("No implementation for the given const type!\nOnly supported types: [ double, bool, std::string, JSON::JArray, JSON::JObject ]\n"); }
 
         template<typename T>
         bool TryGetValueAs(T*& in) { 
@@ -229,12 +229,21 @@ namespace JSON
             return this->value->ToStringFormater(indent, offset);
         }
 
-        template<ValueType type, typename V>
-        static inline JSONElement From(V value) 
+        template<typename V>
+        static inline Element From() 
         { 
             if(!allowed_types<V>::value) throw std::runtime_error("Unsopported type surplyed");
             ValueType vtype = ValueType_of<V>::value;
-            return JSON::JSONElement{vtype, std::make_unique<JSON::Value<V>>(std::move(value))};    
+            V value{};
+            return JSON::Element{vtype, std::make_unique<JSON::Value<V>>(std::move(value))};    
+        }
+
+        template<typename V>
+        static inline Element From(V value) 
+        { 
+            if(!allowed_types<V>::value) throw std::runtime_error("Unsopported type surplyed");
+            ValueType vtype = ValueType_of<V>::value;
+            return JSON::Element{vtype, std::make_unique<JSON::Value<V>>(std::move(value))};    
         }
 
     };
@@ -258,31 +267,31 @@ namespace JSON
             : lexer{fname}
             {}
 
-            JSONElement Parse()
+            Element Parse()
             {
                 lexer.ReadSourceFile();
                 return _parse();
             }
 
-            JSONElement Parse(const char* fname)
+            Element Parse(const char* fname)
             {
                 lexer.ReadSourceFile(fname);
                 return _parse();
             }
 
-            JSONElement Parse(const std::string& fname)
+            Element Parse(const std::string& fname)
             {
                 lexer.ReadSourceFile(fname);
                 return _parse();
             }
 
-            JSONElement Parse(const std::filesystem::path& fname)
+            Element Parse(const std::filesystem::path& fname)
             {
                 lexer.ReadSourceFile(fname);
                 return _parse();
             }
 
-            bool SaveToFile(JSONElement& jsonObj, const std::string& path) noexcept
+            bool SaveToFile(Element& jsonObj, const std::string& path) noexcept
             {
                 std::filesystem::path p{path};
                 if(!std::filesystem::exists(p.parent_path())) 
@@ -299,7 +308,7 @@ namespace JSON
 
         private:
 
-            JSONElement _parse()
+            Element _parse()
             {
                 curser = 0;
                 tokens = lexer.scanTokens();
@@ -310,10 +319,10 @@ namespace JSON
                 return {JSON::ValueType::INVALID, nullptr};
             }
 
-            JSONElement BeginParseObject()
+            Element BeginParseObject()
             {
-                JSONObject container;
-                JSONElement result{JSON::ValueType::OBJECT, nullptr};
+                JObject container;
+                Element result{JSON::ValueType::OBJECT, nullptr};
 
                 while(!isEnd())
                 {
@@ -322,7 +331,7 @@ namespace JSON
                     if(key.getTokenType() == TokenType::RBRACE) 
                     {
                         if(container.size() != 0) throw std::runtime_error("Unexpected token! To early close of object!");
-                        result.value = std::make_unique<Value<JSON::JSONObject>>(std::move(container));
+                        result.value = std::make_unique<Value<JSON::JObject>>(std::move(container));
                         return result; // early close for empty object;
                     }
 
@@ -342,7 +351,7 @@ namespace JSON
                             std::move(value.GetLiteralValueAs<std::string>())
                         );
 
-                        JSONElement element{ValueType::STRING_LITERAL, std::move(valPtr)};
+                        Element element{ValueType::STRING_LITERAL, std::move(valPtr)};
                         container.emplace(std::move(keyStr), std::move(element));
                         break;
                     }
@@ -352,27 +361,27 @@ namespace JSON
                             std::move(value.GetLiteralValueAs<double>())
                         );
 
-                        JSONElement element{ValueType::NUMBER_LITERAL, std::move(valPtr)};
+                        Element element{ValueType::NUMBER_LITERAL, std::move(valPtr)};
                         container.emplace(std::move(keyStr), std::move(element));
                         break;
                     }
                     case TokenType::TRUE_LITERAL: 
                     {
                         auto valPtr = std::make_unique<Value<bool>>( true );
-                        JSONElement element{ValueType::BOOL_LITERAL, std::move(valPtr)};
+                        Element element{ValueType::BOOL_LITERAL, std::move(valPtr)};
                         container.emplace(std::move(keyStr), std::move(element));
                         break;
                     }
                     case TokenType::FALSE_LITERAL: 
                     {
                         auto valPtr = std::make_unique<Value<bool>>( false );
-                        JSONElement element{ValueType::BOOL_LITERAL, std::move(valPtr)};
+                        Element element{ValueType::BOOL_LITERAL, std::move(valPtr)};
                         container.emplace(std::move(keyStr), std::move(element));
                         break;
                     }
                     case TokenType::NULL_LITERAL: 
                     {
-                        JSONElement element{ValueType::NULL_LITERAL, nullptr};
+                        Element element{ValueType::NULL_LITERAL, nullptr};
                         container.emplace(std::move(keyStr), std::move(element));
                         break;
                     }
@@ -398,22 +407,22 @@ namespace JSON
                     case TokenType::COMMA: GetNext(); break;
                     case TokenType::RBRACE: 
                         GetNext(); 
-                        result.value = std::make_unique<Value<JSON::JSONObject>>(std::move(container));
+                        result.value = std::make_unique<Value<JSON::JObject>>(std::move(container));
                         return result;
                     default:
                         std::runtime_error(JSON_UNEXPECTED_TOKEN_TEXT);
                     }
                 }
-                result.value = std::make_unique<Value<JSON::JSONObject>>(std::move(container));
+                result.value = std::make_unique<Value<JSON::JObject>>(std::move(container));
                 return result;
             }
 
             
 
-            JSONElement BeginParseArray()
+            Element BeginParseArray()
             {
-                JSONArray container;
-                JSONElement result{JSON::ValueType::ARRAY, nullptr};
+                JArray container;
+                Element result{JSON::ValueType::ARRAY, nullptr};
 
                 while(!isEnd())
                 {
@@ -427,7 +436,7 @@ namespace JSON
                             std::move(value.GetLiteralValueAs<std::string>())
                         );
 
-                        JSONElement element{ValueType::STRING_LITERAL, std::move(valPtr)};
+                        Element element{ValueType::STRING_LITERAL, std::move(valPtr)};
                         container.emplace_back(std::move(element));
                         break;
                     }
@@ -437,27 +446,27 @@ namespace JSON
                             std::move(value.GetLiteralValueAs<double>())
                         );
 
-                        JSONElement element{ValueType::NUMBER_LITERAL, std::move(valPtr)};
+                        Element element{ValueType::NUMBER_LITERAL, std::move(valPtr)};
                         container.emplace_back(std::move(element));
                         break;
                     }
                     case TokenType::TRUE_LITERAL: 
                     {
                         auto valPtr = std::make_unique<Value<bool>>( true );
-                        JSONElement element{ValueType::BOOL_LITERAL, std::move(valPtr)};
+                        Element element{ValueType::BOOL_LITERAL, std::move(valPtr)};
                         container.emplace_back(std::move(element));
                         break;
                     }
                     case TokenType::FALSE_LITERAL: 
                     {
                         auto valPtr = std::make_unique<Value<bool>>( false );
-                        JSONElement element{ValueType::BOOL_LITERAL, std::move(valPtr)};
+                        Element element{ValueType::BOOL_LITERAL, std::move(valPtr)};
                         container.emplace_back(std::move(element));
                         break;
                     }
                     case TokenType::NULL_LITERAL: 
                     {
-                        JSONElement element{ValueType::NULL_LITERAL, nullptr};
+                        Element element{ValueType::NULL_LITERAL, nullptr};
                         container.emplace_back(std::move(element));
                         break;
                     }
@@ -473,7 +482,7 @@ namespace JSON
                         break;
                     }
                     case TokenType::RBRACKET: 
-                        result.value = std::make_unique<Value<JSON::JSONArray>>(std::move(container));
+                        result.value = std::make_unique<Value<JSON::JArray>>(std::move(container));
                         return result; //Early exit [ ] <- empty or also directly after a value
 
                     default:
@@ -487,13 +496,13 @@ namespace JSON
                         break;
                     case TokenType::RBRACKET: 
                         GetNext(); 
-                        result.value = std::make_unique<Value<JSON::JSONArray>>(std::move(container));
+                        result.value = std::make_unique<Value<JSON::JArray>>(std::move(container));
                         return result;
                     default:
                         std::runtime_error(JSON_UNEXPECTED_TOKEN_TEXT);
                     }
                 }
-                result.value = std::make_unique<Value<JSON::JSONArray>>(std::move(container));
+                result.value = std::make_unique<Value<JSON::JArray>>(std::move(container));
                 return result;
             }
 
@@ -539,9 +548,15 @@ std::string JSON::Value<std::string>::GetValueAsString() noexcept { return "\"" 
 template<>
 std::string JSON::Value<double>::GetValueAsString() noexcept { return std::to_string(this->value); }
 template<>
+std::string JSON::Value<float>::GetValueAsString() noexcept { return std::to_string(this->value); }
+template<>
+std::string JSON::Value<int>::GetValueAsString() noexcept { return std::to_string(this->value); }
+template<>
+std::string JSON::Value<long>::GetValueAsString() noexcept { return std::to_string(this->value); }
+template<>
 std::string JSON::Value<bool>::GetValueAsString() noexcept { return this->value ? "true" : "false"; }
 template<>
-std::string JSON::Value<JSON::JSONArray>::GetValueAsString() noexcept {
+std::string JSON::Value<JSON::JArray>::GetValueAsString() noexcept {
     std::stringstream ss;
     ss << "[ ";
     int count = 0;
@@ -553,7 +568,7 @@ std::string JSON::Value<JSON::JSONArray>::GetValueAsString() noexcept {
     return ss.str(); 
 }
 template<>
-std::string JSON::Value<JSON::JSONObject>::GetValueAsString() noexcept 
+std::string JSON::Value<JSON::JObject>::GetValueAsString() noexcept 
 {
     std::stringstream ss;
     ss << "{ ";
@@ -573,9 +588,15 @@ std::string JSON::Value<std::string>::ToStringFormater(int indent, int offset) n
 template<>
 std::string JSON::Value<double>::ToStringFormater(int indent, int offset) noexcept { return std::to_string(this->value); }
 template<>
+std::string JSON::Value<int>::ToStringFormater(int indent, int offset) noexcept { return std::to_string(this->value); }
+template<>
+std::string JSON::Value<long>::ToStringFormater(int indent, int offset) noexcept { return std::to_string(this->value); }
+template<>
+std::string JSON::Value<float>::ToStringFormater(int indent, int offset) noexcept { return std::to_string(this->value); }
+template<>
 std::string JSON::Value<bool>::ToStringFormater(int indent, int offset) noexcept { return this->value ? "true" : "false"; }
 template<>
-std::string JSON::Value<JSON::JSONArray>::ToStringFormater(int indent, int offset) noexcept {
+std::string JSON::Value<JSON::JArray>::ToStringFormater(int indent, int offset) noexcept {
     std::stringstream ss;
     std::string spacing = JSON::GetIndents(indent);
     std::string ValSpacing = JSON::GetIndents(indent + offset);
@@ -591,7 +612,7 @@ std::string JSON::Value<JSON::JSONArray>::ToStringFormater(int indent, int offse
     return ss.str(); 
 }
 template<>
-std::string JSON::Value<JSON::JSONObject>::ToStringFormater(int indent, int offset) noexcept 
+std::string JSON::Value<JSON::JObject>::ToStringFormater(int indent, int offset) noexcept 
 {
     std::stringstream ss;
     std::string spacing = JSON::GetIndents(indent);
