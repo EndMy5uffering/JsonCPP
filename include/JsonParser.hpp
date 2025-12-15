@@ -148,7 +148,7 @@ namespace JSON
         std::unique_ptr<BaseValue> value;
 
         Element() 
-        : valueType(ValueType::INVALID), value(nullptr) {}
+        : valueType(ValueType::NULL_LITERAL), value(nullptr) {}
 
         Element(ValueType t, std::unique_ptr<BaseValue>&& baseValue)
             : valueType(t),
@@ -244,6 +244,54 @@ namespace JSON
             if(!allowed_types<V>::value) throw std::runtime_error("Unsopported type surplyed");
             ValueType vtype = ValueType_of<V>::value;
             return JSON::Element{vtype, std::make_unique<JSON::Value<V>>(std::move(value))};    
+        }
+
+        template<typename V>
+        bool Add(const std::string& key, V value)
+        {
+            if(this->valueType != ValueType::OBJECT) return false;
+            if(!allowed_types<V>::value) return false;
+            this->template GetValueAs<JObject>()[key] = Element::template From<V>(value);
+            return true;
+        }
+
+        template<typename V>
+        bool Add(V value)
+        {
+            if(this->valueType != ValueType::ARRAY) return false;
+            if(!allowed_types<V>::value) return false;
+            this->template GetValueAs<JArray>().emplace_back(Element::template From<V>(value));
+            return true;
+        }
+
+        Element& operator[](const std::string& key)
+        {
+            if(this->valueType != ValueType::OBJECT) throw std::runtime_error("Instance not of type object! Access with key only on instances of type object!");
+            return GetValueAs<JObject>()[key];
+        }
+
+        Element& operator[](size_t key)
+        {
+            if(this->valueType != ValueType::ARRAY) throw std::runtime_error("Instance not of type object! Access with key only on instances of type object!");
+            return GetValueAs<JArray>()[key];
+        }
+
+        template<typename T>
+        Element& operator<<(T args)
+        {
+            if(this->valueType != ValueType::ARRAY) throw std::runtime_error("Instance not of type array! Can not append to non array type!");
+            GetValueAs<JArray>().emplace_back(
+                Element::template From<T>(args)
+            );
+            return *this;
+        }
+
+        template<typename T>
+        bool operator>>(T& result)
+        {
+            if(this->valueType != ValueType_of<T>::value) return false;
+            result = GetValueAs<T>();
+            return true;
         }
 
     };

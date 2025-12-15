@@ -21,23 +21,39 @@
 
 int main(void) 
 {
-    //JSON::Parse("../test_1.json");
-
+    /* 
+        Create Json parser to read in file 
+        Path to file is optional and can be supplied in JSONParser::Parse as well
+    */
     JSON::JSONParser parser{"../testJSON/test_1.json"};
+
+    /* Reads file and creates Json object tree structure */
     JSON::Element element = parser.Parse();
 
+    /* 
+        Access contained value 
+        GetValueAs returns a reference to the contained JSON::JObject
+    */
     auto& container = element.GetValueAs<JSON::JObject>();
 
+    /* 
+        Getting a value at a key position 
+        Returns a reference to an JSON:Element
+    */
     auto& test = container["falseBoolean"];
+
+    /* Getting the value ... again */
     auto& value = test.GetValueAs<bool>();
     std::cout << "Bool Value: " << value << "\n";
 
-
+    /* Same as above but now its a string */
     auto& test2 = container["simpleString"];
     auto& sstring = test2.GetValueAs<std::string>();
     std::cout << "String Value: " << sstring << "\n";
 
+    /* Itterating over key set in the JSON::JObject */
     JSON::JObject* tryGetContainer;
+    /* Using TryGetValueAs to test if value is of type JSON::JObject */
     if(element.TryGetValueAs<JSON::JObject>(tryGetContainer))
     {
         auto& value = (*tryGetContainer)["simpleString"];
@@ -50,19 +66,43 @@ int main(void)
         }
     }
 
+    /* Not formated to string */
     std::cout << "Back to string: \n" << element.ToString() << "\n\n\n";
+
+    /* Format with indents and newlines */
     std::cout << "Back to string indented: \n" << element.ToString(4) << "\n\n\n";
 
+    /* Save elements to file with given path (folders along path will be created) */
     std::cout << "Written JSON: " << parser.SaveToFile(element, "../out/test/output.json") << "\n";
 
-
+    /* Creates a new json object */
     JSON::Element newElement = JSON::Element::From<JSON::JObject>();
-    newElement.GetValueAs<JSON::JObject>()["a"] = JSON::Element::From(42);
-    newElement.GetValueAs<JSON::JObject>()["b"] = JSON::Element::From<std::string>("asdf");
-    newElement.GetValueAs<JSON::JObject>()["c"] = JSON::Element::From<nullptr_t>();
+    /* Elements of type JSON::JObject allow for ["key"] access */
+    /* Elements of type JSON::JArray allow for [number] access */
+    newElement["a"] = JSON::Element::From(42);
+    newElement["b"] = JSON::Element::From<std::string>("asdf");
+    newElement["c"] = JSON::Element::From<nullptr_t>();
 
-    std::cout << "Written JSON 2: " << parser.SaveToFile(newElement, "../out/test/output2.json") << "\n";
+    /* Does not exist but will be created */
+    newElement["empty"];
 
+    newElement["d"] = JSON::Element::From<JSON::JObject>();
+    newElement["d"]["da"] = JSON::Element::From(180);
+    newElement["d"]["arr"] = JSON::Element::From<JSON::JArray>();
+
+    /* Assigning multiple values to an array */
+    newElement["d"]["arr"] << 1 << 2 << 3 << std::string("asdf");
+
+    /* Runs and returns number */
+    if(int number; newElement["a"] >> number) std::cout << "Number: " << number << "\n";
+
+    /* Does not run as "b" is a string */
+    if(int number2; newElement["b"] >> number2) std::cout << "Number2: " << number2 << "\n";
+
+    /* Does not run as "someString" does not exist as a key but is created */
+    if(std::string someString; newElement["someString"] >> someString) std::cout << "Some String: " << someString << "\n";
+
+    std::cout << "New json object: " << newElement.ToString(4) << "\n";
 
     return 0;
 }
