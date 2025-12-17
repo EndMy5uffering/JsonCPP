@@ -42,6 +42,16 @@ namespace JSON
 {
     struct Element;
     
+    struct Jsonify { 
+        virtual void ToJsonObject(Element& obj) { Obj = false; } 
+        virtual void ToJsonArray(Element& arr) { Arr = false; }
+    private:
+        bool Obj = true;
+        bool Arr = true;
+
+        friend Element;
+    };
+
     typedef std::unordered_map<std::string, Element> JObject;
     typedef std::vector<Element> JArray;
 
@@ -69,7 +79,7 @@ namespace JSON
     };
 
     template<typename T>
-    struct ValueType_of; 
+    struct ValueType_of;
 
     template<> struct ValueType_of<double>      { static constexpr ValueType value = ValueType::NUMBER_LITERAL; };
     template<> struct ValueType_of<int>         { static constexpr ValueType value = ValueType::NUMBER_LITERAL; };
@@ -78,8 +88,8 @@ namespace JSON
     template<> struct ValueType_of<std::string> { static constexpr ValueType value = ValueType::STRING_LITERAL; };
     template<> struct ValueType_of<bool>        { static constexpr ValueType value = ValueType::BOOL_LITERAL;   };
     template<> struct ValueType_of<nullptr_t>   { static constexpr ValueType value = ValueType::NULL_LITERAL;   };
-    template<> struct ValueType_of<JObject>  { static constexpr ValueType value = ValueType::OBJECT;         };
-    template<> struct ValueType_of<JArray>   { static constexpr ValueType value = ValueType::ARRAY;          };
+    template<> struct ValueType_of<JObject>     { static constexpr ValueType value = ValueType::OBJECT;         };
+    template<> struct ValueType_of<JArray>      { static constexpr ValueType value = ValueType::ARRAY;          };
     template<> struct ValueType_of<void>        { static constexpr ValueType value = ValueType::INVALID;        };
 
     static std::string ValueTypeToString(ValueType type)
@@ -255,6 +265,30 @@ namespace JSON
             return true;
         }
 
+        
+        bool AddObject(const std::string& key, Jsonify& value, bool skipJsonifyObj = false)
+        {
+            if(this->valueType != ValueType::OBJECT) return false;
+            
+            Element obj = Element::From<JObject>();
+            value.ToJsonObject(obj);
+            if(!skipJsonifyObj && value.Obj)
+            {
+                this->template GetValueAs<JObject>()[key] = std::move(obj);
+                return true;
+            }
+
+            Element arr = Element::From<JArray>();
+            value.ToJsonArray(arr);
+            if(value.Arr)
+            {
+                this->template GetValueAs<JObject>()[key] = std::move(arr);
+                return true;
+            }
+
+            return false;
+        }
+
         template<typename V>
         bool Add(V value)
         {
@@ -262,6 +296,29 @@ namespace JSON
             if(!allowed_types<V>::value) return false;
             this->template GetValueAs<JArray>().emplace_back(Element::template From<V>(value));
             return true;
+        }
+        
+        bool AddObject(Jsonify& value)
+        {
+            if(this->valueType != ValueType::ARRAY) return false;
+
+            Element obj = Element::From<JObject>();
+            value.ToJsonObject(obj);
+            if(value.Obj)
+            {
+                this->template GetValueAs<JArray>().emplace_back(std::move(obj));
+                return true;
+            }
+
+            Element arr = Element::From<JArray>();
+            value.ToJsonArray(arr);
+            if(value.Arr)
+            {
+                this->template GetValueAs<JArray>().emplace_back(std::move(arr));
+                return true;
+            }
+
+            return false;
         }
 
         Element& operator[](const std::string& key)
@@ -279,10 +336,9 @@ namespace JSON
         template<typename T>
         Element& operator<<(T args)
         {
-            if(this->valueType != ValueType::ARRAY) throw std::runtime_error("Instance not of type array! Can not append to non array type!");
-            GetValueAs<JArray>().emplace_back(
-                Element::template From<T>(args)
-            );
+            if(!allowed_types<T>::value) throw std::runtime_error("Type not allowed to assign!");
+            if(this->valueType == ValueType::ARRAY) GetValueAs<JArray>().emplace_back(Element::template From<T>(args));
+            if(this->valueType == ValueType::NULL_LITERAL) *this = Element::template From<T>(args);
             return *this;
         }
 
@@ -292,6 +348,21 @@ namespace JSON
             if(this->valueType != ValueType_of<T>::value) return false;
             result = GetValueAs<T>();
             return true;
+        }
+
+        Element& operator=(Jsonify& value)
+        {
+            Element obj = From<JObject>();
+            value.ToJsonObject(obj);
+            
+            Element arr = From<JArray>();
+            value.ToJsonArray(arr);
+
+            if(!value.Arr && !value.Obj) throw std::runtime_error("Can not assign Jsonify object with object and array json conversions!");
+
+            if(value.Obj) *this = std::move(obj);
+            if(value.Arr) *this = std::move(arr);
+            return *this;
         }
 
         bool Remove(const std::string& key)
@@ -696,6 +767,22 @@ std::string JSON::Value<JSON::JObject>::ToStringFormater(int indent, int offset)
     }
     ss << spacing << "}";
     return ss.str();
+}
+
+template<>
+bool JSON::Element::Add<JSON::Element&&>(const std::string& key, JSON::Element&& value)
+{
+    if(this->valueType != ValueType::OBJECT) return false;
+    this->template GetValueAs<JObject>()[key] = std::forward<JSON::Element>(value);
+    return true;
+}
+
+template<>
+bool JSON::Element::Add<JSON::Element&&>(JSON::Element&& value)
+{
+    if(this->valueType != ValueType::ARRAY) return false;
+    this->template GetValueAs<JArray>().emplace_back(std::forward<JSON::Element>(value));
+    return true;
 }
 
 #undef JSON_UNEXPECTED_TOKEN_TEXT

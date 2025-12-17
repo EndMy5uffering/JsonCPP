@@ -19,6 +19,55 @@
 
 #include "JsonParser.hpp"
 
+struct JustSomeStruct : public JSON::Jsonify
+{
+    int someNumber;
+    float someFloat;
+    std::string testString;
+
+    void ToJsonObject(JSON::Element& object) override
+    {
+        object["someNumber"] << someNumber;
+        object["someFloat"] << someFloat;
+        object["testString"] << testString;
+    }
+
+    void ToJsonArray(JSON::Element& array) override
+    {
+        array << someNumber << someFloat << testString;
+    }
+};
+
+struct OnlyToObject : public JSON::Jsonify
+{
+    int a;
+    float b;
+    long c;
+    double d;
+
+    void ToJsonObject(JSON::Element& object) override
+    {
+        object["a"] << a;
+        object["b"] << b;
+        object["c"] << c;
+        object["d"] << d;
+    }
+
+};
+
+struct OnlyToArray : public JSON::Jsonify
+{
+    int a;
+    float b;
+    long c;
+    double d;
+
+    void ToJsonArray(JSON::Element& array) override
+    {
+        array << a << b << c << d;
+    }
+};
+
 int main(void) 
 {
     /* 
@@ -119,6 +168,37 @@ int main(void)
     if(std::string someString; newElement["someString"] >> someString) std::cout << "Some String: " << someString << "\n";
 
     std::cout << "New json object: " << newElement.ToString(4) << "\n";
+
+    JSON::Element jsonify = JSON::Element::From<JSON::JObject>();
+
+    OnlyToObject obj;
+    obj.a = 1;
+    obj.b = 2.0f;
+    obj.c = 3l;
+    obj.d = 4.0;
+    jsonify.AddObject("AsObject", obj);
+
+    OnlyToArray arr;
+    arr.a = 10;
+    arr.b = 12.0f;
+    arr.c = 14l;
+    arr.d = 16.0;
+    jsonify.AddObject("AsArray", arr);
+
+    JustSomeStruct jst;
+    jst.someFloat = 123.0f;
+    jst.someNumber = 42;
+    jst.testString = "Hello World";
+    jsonify.AddObject("JustSomeStruct", jst);
+    jsonify.AddObject("JustSomeStructAsArray", jst, true);
+    
+    jsonify["SomeOtherWayToAssignAnArray"] = arr;
+    jsonify["SomeOtherWayToAssignAnObj"] = obj;
+    
+    /* Can not assign a struct that implements both to array and to object */
+    // jsonify["NotPossible"] = jst;
+    
+    std::cout << "From object:\n" << jsonify.ToString(4) << "\n";
 
     return 0;
 }
